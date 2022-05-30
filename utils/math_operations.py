@@ -3,9 +3,7 @@ from math import pi as PI
 from math import sqrt
 
 import numpy as np
-from config import FOCAL_LENGTH, MATRIX_HEIGHT, MATRIX_WIDTH
 from models.geo import Plane, Point2d, Point3d, Vector
-from sympy import Polygon
 
 
 def degree_to_radian(degree: float):
@@ -57,5 +55,17 @@ def get_distance_for_longtitude(latitude: float):
     return (40000 * cos(rad) / 360) * 1000
 
 
-def get_intersection_between_polygons(p1: Polygon, p2: Polygon):
-    pass
+def get_intersection_line_and_plane(p1: Point3d, p2: Point3d, plane: Plane):
+    direct_vector = get_vector_by_2_points(p1, p2)
+
+    t = -(plane.d + plane.a * p1.x + plane.b * p1.y + plane.c * p1.z) / (
+        plane.a * direct_vector.x
+        + plane.b * direct_vector.y
+        + plane.c * direct_vector.z
+    )
+
+    return Point3d(
+        x=p1.x + t * direct_vector.x,
+        y=p1.y + t * direct_vector.y,
+        z=p1.z + t * direct_vector.z,
+    )

@@ -11,4 +11,5 @@ if __name__ == "__main__":
     log_file_panorama = Log("flight-logs/fly_info_panorama.txt")
     camera = Camera(log_file_panorama)
     camera.visualize_images("output/panorama_images.html")
-    print(camera.images)
+
+    camera.build_panorama()

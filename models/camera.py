@@ -1,16 +1,19 @@
 from typing import List
 
+import cv2 as cv
 import folium
 import numpy as np
 from config import FOCAL_LENGTH, LATITUDE_DISTANCE, MATRIX_HEIGHT, MATRIX_WIDTH
-from sympy import Point, Polygon
 from utils.math_operations import (
     convert_mm_to_m,
     degree_to_radian,
     get_distance_for_longtitude,
+    get_intersection_line_and_plane,
+    get_plane_by_3_points,
     get_vector_by_2_points,
     multiply_matrices,
 )
+from utils.matrix_operations import get_camera_matrix_point_on_air, normalize_img
 from utils.transformation_matrices import (
     get_pitch_transformation_matrix,
     get_roll_transformation_matrix,
@@ -184,27 +187,123 @@ class Camera:
         map_obj.save(output_file)
         print(f"Finish generating {output_file}!")
 
-    def _generate_polygons_for_ground_area(self):
-        polygons = []
+    def build_panorama(self):
+        min_x = min_y = 10000
+        max_x = max_y = -10000
+
         for image in self.images:
-            curr_polygon = Polygon(
-                Point(
-                    image.ground_area.upper_right.x,
-                    image.ground_area.upper_right.y,
-                ),
-                Point(
-                    image.ground_area.upper_left.x,
-                    image.ground_area.upper_left.y,
-                ),
-                Point(
-                    image.ground_area.lower_left.x,
-                    image.ground_area.lower_left.y,
-                ),
-                Point(
-                    image.ground_area.lower_right.x,
-                    image.ground_area.lower_right.y,
+            min_x = min(
+                min_x,
+                image.ground_area.upper_right.x,
+                image.ground_area.upper_left.x,
+                image.ground_area.lower_right.x,
+                image.ground_area.lower_right.x,
+            )
+            max_x = max(
+                max_x,
+                image.ground_area.upper_right.x,
+                image.ground_area.upper_left.x,
+                image.ground_area.lower_right.x,
+                image.ground_area.lower_right.x,
+            )
+            max_y = max(
+                max_y,
+                image.ground_area.upper_right.y,
+                image.ground_area.upper_left.y,
+                image.ground_area.lower_right.y,
+                image.ground_area.lower_right.y,
+            )
+            min_y = min(
+                min_y,
+                image.ground_area.upper_right.y,
+                image.ground_area.upper_left.y,
+                image.ground_area.lower_right.y,
+                image.ground_area.lower_right.y,
+            )
+
+        image_sz = 500
+        LONGTITUDE_DISTANCE = get_distance_for_longtitude(max_y)
+        dmx = (max_x - min_x) * LONGTITUDE_DISTANCE
+        dmy = (max_y - min_y) * LATITUDE_DISTANCE
+
+        if dmx > dmy:
+            dpx = image_sz
+            dpy = int(image_sz * dmy / dmx)
+        else:
+            dpx = int(image_sz * dmx / dmy)
+            dpy = image_sz
+
+        res_matrix = np.zeros((dpy, dpx, 3)).astype(np.uint8)
+
+        for image_info in self.images:
+            print(f"Processing image {image_info.id}...")
+            image = cv.imread(image_info.path)
+            image = normalize_img(image)
+
+            ground_plane = get_plane_by_3_points(
+                Point3d(0, 0, -1 * image_info.location.alt),
+                Point3d(0, 1, -1 * image_info.location.alt),
+                Point3d(1, 0, -1 * image_info.location.alt),
+            )
+
+            yaw_transformation_matrix = get_yaw_transformation_matrix(
+                degree_to_radian(image_info.rotation.yaw)
+            )
+            roll_transformation_matrix = get_roll_transformation_matrix(
+                degree_to_radian(image_info.rotation.roll)
+            )
+            pitch_transformation_matrix = get_pitch_transformation_matrix(
+                degree_to_radian(image_info.rotation.pitch)
+            )
+            transformation_matrix = multiply_matrices(
+                yaw_transformation_matrix,
+                multiply_matrices(
+                    roll_transformation_matrix, pitch_transformation_matrix
                 ),
             )
-            polygons.append(curr_polygon)
 
-        return polygons
+            air_matrix_coordinates = self._get_camera_matrix_coordinates_for_image(
+                Point3d(0, 0, 0)
+            )
+            focus_point_coordinate = multiply_matrices(
+                transformation_matrix, air_matrix_coordinates["focus"]
+            )
+            focus_point_coordinate = Point3d(
+                x=focus_point_coordinate[0],
+                y=focus_point_coordinate[1],
+                z=focus_point_coordinate[2],
+            )
+
+            image_height, image_width, _ = image.shape
+            for x in range(1, image_width):
+                for y in range(image_height):
+                    print(x, y)
+                    pix = image[y][image_width - x]
+                    camera_matrix_point = get_camera_matrix_point_on_air(
+                        Point3d(0, 0, 0),
+                        (x - image_width / 2.0) / image_width,
+                        (y - image_height / 2.0) / image_height,
+                    )
+                    camera_matrix_point = multiply_matrices(
+                        transformation_matrix, camera_matrix_point
+                    )
+                    air_point = Point3d(
+                        x=camera_matrix_point[0],
+                        y=camera_matrix_point[1],
+                        z=camera_matrix_point[2],
+                    )
+                    ground_point = get_intersection_line_and_plane(
+                        air_point, focus_point_coordinate, ground_plane
+                    )
+                    X = image_info.location.lot + ground_point.x / LONGTITUDE_DISTANCE
+                    Y = image_info.location.lat + ground_point.y / LATITUDE_DISTANCE
+                    dx = X - min_x
+                    dx = dx * LONGTITUDE_DISTANCE
+                    dx = dx / dmx * dpx
+                    dy = max_y - Y
+                    dy = dy * LATITUDE_DISTANCE
+                    dy = dy / dmy * dpy
+                    if dx > 0 and dx < dpx and dy > 0 and dy < dpy:
+                        res_matrix[int(dy)][int(dx)] = pix
+
+        cv.imwrite("output/panorama.jpg", res_matrix)
