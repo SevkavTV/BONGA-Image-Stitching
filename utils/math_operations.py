@@ -1,9 +1,10 @@
+from math import cos
 from math import pi as PI
 from math import sqrt
 
 import numpy as np
 from config import FOCAL_LENGTH, MATRIX_HEIGHT, MATRIX_WIDTH
-from models.point import Point2d, Point3d
+from models.geo import Plane, Point2d, Point3d, Vector
 
 
 def degree_to_radian(degree: float):
@@ -26,9 +27,30 @@ def euclidian_distance3d(p1: Point3d, p2: Point3d):
     )
 
 
-def multiply_matrices(m1: np.array, m2: np.array):
-    return np.dot(m1, m2)
+def multiply_matrices(p2: np.array, p3: np.array):
+    return np.dot(p2, p3)
 
 
-def get_vector_for_points(p1: Point3d, p2: Point3d):
-    return Point3d(x=p2.x - p1.x, y=p2.y - p1.y, z=p2.z - p1.z)
+def get_vector_by_2_points(p1: Point3d, p2: Point3d):
+    return Vector(x=p2.x - p1.x, y=p2.y - p1.y, z=p2.z - p1.z)
+
+
+def get_plane_by_3_points(p1: Point3d, p2: Point3d, p3: Point3d):
+    x1 = p2.x - p1.x
+    x2 = p3.x - p1.x
+    y1 = p2.y - p1.y
+    y2 = p3.y - p1.y
+    z1 = p2.z - p1.z
+    z2 = p3.z - p1.z
+
+    a = y1 * z2 - z1 * y2
+    b = z1 * x2 - x1 * z2
+    c = x1 * y2 - y1 * x2
+    d = -p1.x * a - p1.y * b - p1.z * c
+
+    return Plane(a, b, c, d)
+
+
+def get_distance_for_longtitude(latitude: float):
+    rad = (latitude * PI) / 180
+    return (40000 * cos(rad) / 360) * 1000
