@@ -1,9 +1,12 @@
 from typing import List
 
+import folium
 import numpy as np
 from config import FOCAL_LENGTH, LATITUDE_DISTANCE, MATRIX_HEIGHT, MATRIX_WIDTH
+from sympy import Point, Polygon
 from utils.math_operations import (
     convert_mm_to_m,
+    degree_to_radian,
     get_distance_for_longtitude,
     get_vector_by_2_points,
     multiply_matrices,
@@ -29,13 +32,13 @@ class Camera:
             LONGTITUDE_DISTANCE = get_distance_for_longtitude(image.location.lat)
 
             yaw_transformation_matrix = get_yaw_transformation_matrix(
-                image.rotation.yaw
+                degree_to_radian(image.rotation.yaw)
             )
             roll_transformation_matrix = get_roll_transformation_matrix(
-                -1 * image.rotation.roll
+                degree_to_radian(-1 * image.rotation.roll)
             )
             pitch_transformation_matrix = get_pitch_transformation_matrix(
-                -1 * image.rotation.pitch
+                degree_to_radian(-1 * image.rotation.pitch)
             )
             transformation_matrix = multiply_matrices(
                 yaw_transformation_matrix,
@@ -155,3 +158,53 @@ class Camera:
             "lower_right": lower_right_coordinate,
             "focus": focus_coordinate,
         }
+
+    def visualize_images(self, output_file: str):
+        print(f"Start generating {output_file}...")
+        map_obj = folium.Map(
+            location=[self.images[0].location.lat, self.images[0].location.lot],
+            zoom_start=15,
+        )
+
+        for image in self.images:
+            folium.Polygon(
+                [
+                    (image.ground_area.upper_right.y, image.ground_area.upper_right.x),
+                    (image.ground_area.upper_left.y, image.ground_area.upper_left.x),
+                    (image.ground_area.lower_left.y, image.ground_area.lower_left.x),
+                    (image.ground_area.lower_right.y, image.ground_area.lower_right.x),
+                ],
+                color="blue",
+                weight=2,
+                fill=True,
+                fill_color="orange",
+                fill_opacity=0.4,
+            ).add_to(map_obj)
+
+        map_obj.save(output_file)
+        print(f"Finish generating {output_file}!")
+
+    def _generate_polygons_for_ground_area(self):
+        polygons = []
+        for image in self.images:
+            curr_polygon = Polygon(
+                Point(
+                    image.ground_area.upper_right.x,
+                    image.ground_area.upper_right.y,
+                ),
+                Point(
+                    image.ground_area.upper_left.x,
+                    image.ground_area.upper_left.y,
+                ),
+                Point(
+                    image.ground_area.lower_left.x,
+                    image.ground_area.lower_left.y,
+                ),
+                Point(
+                    image.ground_area.lower_right.x,
+                    image.ground_area.lower_right.y,
+                ),
+            )
+            polygons.append(curr_polygon)
+
+        return polygons

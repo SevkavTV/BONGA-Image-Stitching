@@ -5,6 +5,7 @@ from math import sqrt
 import numpy as np
 from config import FOCAL_LENGTH, MATRIX_HEIGHT, MATRIX_WIDTH
 from models.geo import Plane, Point2d, Point3d, Vector
+from sympy import Polygon
 
 
 def degree_to_radian(degree: float):
@@ -54,3 +55,7 @@ def get_plane_by_3_points(p1: Point3d, p2: Point3d, p3: Point3d):
 def get_distance_for_longtitude(latitude: float):
     rad = (latitude * PI) / 180
     return (40000 * cos(rad) / 360) * 1000
+
+
+def get_intersection_between_polygons(p1: Polygon, p2: Polygon):
+    pass
