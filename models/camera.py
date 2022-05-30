@@ -250,10 +250,10 @@ class Camera:
                 degree_to_radian(image_info.rotation.yaw)
             )
             roll_transformation_matrix = get_roll_transformation_matrix(
-                degree_to_radian(image_info.rotation.roll)
+                degree_to_radian(-1 * image_info.rotation.roll)
             )
             pitch_transformation_matrix = get_pitch_transformation_matrix(
-                degree_to_radian(image_info.rotation.pitch)
+                degree_to_radian(-1 * image_info.rotation.pitch)
             )
             transformation_matrix = multiply_matrices(
                 yaw_transformation_matrix,
@@ -277,7 +277,6 @@ class Camera:
             image_height, image_width, _ = image.shape
             for x in range(1, image_width):
                 for y in range(image_height):
-                    print(x, y)
                     pix = image[y][image_width - x]
                     camera_matrix_point = get_camera_matrix_point_on_air(
                         Point3d(0, 0, 0),

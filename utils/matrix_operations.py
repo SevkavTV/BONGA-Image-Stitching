@@ -26,7 +26,7 @@ def normalize_img(img):
     transformation_matrix[0][0] = 1 / k1
     transformation_matrix[1][1] = 1 / k1
     result = cv.warpAffine(
-        img, transformation_matrix, (int(img.shape[0] / k1), int(img.shape[1] / k1))
+        img, transformation_matrix, (int(img.shape[1] / k1), int(img.shape[0] / k1))
     )
     return result
 
