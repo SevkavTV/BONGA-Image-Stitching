@@ -229,11 +229,11 @@ def main():
     max_points = 20  # max key points
 
     # uploading images
-    src_bw = crop_img_bottom(get_buffered_img("images/117.jpg", bw=True), h)
-    src_col = crop_img_bottom(get_buffered_img("images/117.jpg"), h)
+    src_bw = crop_img_bottom(get_buffered_img("images/116.jpg", bw=True), h)
+    src_col = crop_img_bottom(get_buffered_img("images/116.jpg"), h)
 
-    dst_bw = crop_img_bottom(get_buffered_img("images/116.jpg", bw=True), h)
-    dst_col = crop_img_bottom(get_buffered_img("images/116.jpg"), h)
+    dst_bw = crop_img_bottom(get_buffered_img("images/117.jpg", bw=True), h)
+    dst_col = crop_img_bottom(get_buffered_img("images/117.jpg"), h)
 
     if not check_img_cmpetability(src_bw, dst_bw):
         print("images are different size")
